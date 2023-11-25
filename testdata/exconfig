@@ -1,0 +1,14 @@
+# #!! treat as extended configuration
+Host ext
+  User root #!! Admin user
+  #!! EnableTrzsz Yes
+  #!! EnableDragFile No #!! Comment test
+  #!! #!! Password 123456
+  # #!! Passphrase 111111
+
+Host ext2
+  HostName ::1
+  #  EnableTrzsz No
+  #! EnableDragFile Yes
+  #!! Password 123456
+  #!! #!! Passphrase 111111

@@ -500,3 +500,36 @@ func TestCustomFinder(t *testing.T) {
 		t.Errorf("expected to find User root, got %q", val)
 	}
 }
+
+func TestExtendedConfig(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/exconfig"),
+	}
+
+	for _, kv := range []struct {
+		host  string
+		key   string
+		value string
+	}{
+		{"ext", "User", "root"},
+		{"ext", "Admin", ""},
+		{"ext", "EnableTrzsz", "Yes"},
+		{"ext", "EnableDragFile", "No"},
+		{"ext", "Comment", ""},
+		{"ext", "Password", ""},
+		{"ext", "Passphrase", ""},
+		{"ext2", "HostName", "::1"},
+		{"ext2", "EnableTrzsz", ""},
+		{"ext2", "EnableDragFile", ""},
+		{"ext2", "Password", "123456"},
+		{"ext2", "Passphrase", ""},
+	} {
+		value, err := us.GetStrict(kv.host, kv.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if value != kv.value {
+			t.Errorf("expected %q.%q to be %q, got %q", kv.host, kv.key, kv.value, value)
+		}
+	}
+}

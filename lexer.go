@@ -135,17 +135,25 @@ func (s *sshLexer) next() rune {
 }
 
 func (s *sshLexer) lexVoid() sshLexStateFn {
+	beginningOfLine := true
 	for {
 		next := s.peek()
 		switch next {
 		case '#':
 			s.skip()
+			if beginningOfLine && s.follow("!!") { // #!! treat as extended configuration
+				s.skip()
+				s.skip()
+				beginningOfLine = false
+				continue
+			}
 			return s.lexComment(s.lexVoid)
 		case '\r':
 			fallthrough
 		case '\n':
 			s.emit(tokenEmptyLine)
 			s.skip()
+			beginningOfLine = true
 			continue
 		}
 
