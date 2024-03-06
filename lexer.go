@@ -83,9 +83,15 @@ func (s *sshLexer) lexKey() sshLexStateFn {
 
 func (s *sshLexer) lexRvalue() sshLexStateFn {
 	growingString := ""
+	isSingleQuoted := false
+	isDoubleQuoted := false
 	for {
 		next := s.peek()
 		switch next {
+		case '\'':
+			isSingleQuoted = !isSingleQuoted
+		case '"':
+			isDoubleQuoted = !isDoubleQuoted
 		case '\r':
 			if s.follow("\r\n") {
 				s.emitWithValue(tokenString, growingString)
@@ -97,9 +103,11 @@ func (s *sshLexer) lexRvalue() sshLexStateFn {
 			s.skip()
 			return s.lexVoid
 		case '#':
-			s.emitWithValue(tokenString, growingString)
-			s.skip()
-			return s.lexComment(s.lexVoid)
+			if !isSingleQuoted && !isDoubleQuoted {
+				s.emitWithValue(tokenString, growingString)
+				s.skip()
+				return s.lexComment(s.lexVoid)
+			}
 		case eof:
 			s.next()
 		}
