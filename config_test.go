@@ -559,3 +559,24 @@ func TestHashInDoubleQuotedValue(t *testing.T) {
 		t.Errorf("expected to get %q, got %q", expectedVal, val)
 	}
 }
+
+func TestReservedValue(t *testing.T) {
+	us := &UserSettings{}
+	us.ConfigFinder(func() string {
+		return "testdata/reserved-value"
+	})
+
+	testCases := []struct {
+		key           string
+		expectedValue string
+	}{
+		{"Key1", "Value1 # This is part of the value, not a comment"},
+		{"Key2", "Value2"},
+	}
+	for _, tc := range testCases {
+		val := us.Get("comment", tc.key)
+		if val != tc.expectedValue {
+			t.Errorf("expected to get %q, got %q", tc.expectedValue, val)
+		}
+	}
+}

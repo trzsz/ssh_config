@@ -44,7 +44,7 @@ func (s *sshLexer) lexRspace() sshLexStateFn {
 		}
 		s.skip()
 	}
-	return s.lexRvalue
+	return s.lexRReservedvalue
 }
 
 func (s *sshLexer) lexEquals() sshLexStateFn {
@@ -108,6 +108,34 @@ func (s *sshLexer) lexRvalue() sshLexStateFn {
 				s.skip()
 				return s.lexComment(s.lexVoid)
 			}
+		case eof:
+			s.next()
+		}
+		if next == eof {
+			break
+		}
+		growingString += string(next)
+		s.next()
+	}
+	s.emit(tokenEOF)
+	return nil
+}
+
+func (s *sshLexer) lexRReservedvalue() sshLexStateFn {
+	growingString := ""
+	for {
+		next := s.peek()
+		switch next {
+		case '\r':
+			if s.follow("\r\n") {
+				s.emitWithValue(tokenString, growingString)
+				s.skip()
+				return s.lexVoid
+			}
+		case '\n':
+			s.emitWithValue(tokenString, growingString)
+			s.skip()
+			return s.lexVoid
 		case eof:
 			s.next()
 		}
