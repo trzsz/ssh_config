@@ -534,33 +534,7 @@ func TestExtendedConfig(t *testing.T) {
 	}
 }
 
-func TestHashInSingleQuotedValue(t *testing.T) {
-	us := &UserSettings{}
-	us.ConfigFinder(func() string {
-		return "testdata/hash-in-single-quoted-value"
-	})
-
-	expectedVal := "ncat --proxy-type socks5 --proxy-auth 'user_name:pwd@#123_^&*' --proxy proxy_ip:proxy_port %h %p"
-	val := us.Get("wap1", "ProxyCommand")
-	if val != expectedVal {
-		t.Errorf("expected to get %q, got %q", expectedVal, val)
-	}
-}
-
-func TestHashInDoubleQuotedValue(t *testing.T) {
-	us := &UserSettings{}
-	us.ConfigFinder(func() string {
-		return "testdata/hash-in-double-quoted-value"
-	})
-
-	expectedVal := "ncat --proxy-type socks5 --proxy-auth \"user_name:pwd@#123_^&*\" --proxy proxy_ip:proxy_port %h %p"
-	val := us.Get("wap2", "ProxyCommand")
-	if val != expectedVal {
-		t.Errorf("expected to get %q, got %q", expectedVal, val)
-	}
-}
-
-func TestReservedValue(t *testing.T) {
+func TestCommentValue(t *testing.T) {
 	us := &UserSettings{}
 	us.ConfigFinder(func() string {
 		return "testdata/reserved-value"

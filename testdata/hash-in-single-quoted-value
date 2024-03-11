@@ -1,7 +1,0 @@
-Host wap1 # there is a proxy available for this one...
-    UserKnownHostsFile /dev/null
-    StrictHostKeyChecking no
-    Port 22
-    User user_name
-    IdentityFile path_to_private_key
-    ProxyCommand ncat --proxy-type socks5 --proxy-auth 'user_name:pwd@#123_^&*' --proxy proxy_ip:proxy_port %h %p
