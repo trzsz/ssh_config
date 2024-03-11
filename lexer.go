@@ -81,7 +81,7 @@ func (s *sshLexer) lexKey() sshLexStateFn {
 	return s.lexEquals
 }
 
-func (s *sshLexer) lexRvalue(ignoreHash bool) sshLexStateFn {
+func (s *sshLexer) lexRvalue(ignoreComment bool) sshLexStateFn {
 	return func() sshLexStateFn {
 		growingString := ""
 		for {
@@ -98,7 +98,7 @@ func (s *sshLexer) lexRvalue(ignoreHash bool) sshLexStateFn {
 				s.skip()
 				return s.lexVoid
 			case '#':
-				if ignoreHash {
+				if ignoreComment {
 					growingString += string(next)
 					s.next()
 					continue
