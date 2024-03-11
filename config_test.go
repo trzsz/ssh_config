@@ -537,7 +537,7 @@ func TestExtendedConfig(t *testing.T) {
 func TestCommentValue(t *testing.T) {
 	us := &UserSettings{}
 	us.ConfigFinder(func() string {
-		return "testdata/reserved-value"
+		return "testdata/comment-value"
 	})
 
 	testCases := []struct {
