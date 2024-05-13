@@ -402,7 +402,7 @@ func (c *Config) Get(alias, key string) (string, error) {
 					panic("can't handle Match directives")
 				}
 				if lkey == lowerKey {
-					return t.Value, nil
+					return strings.Trim(t.Value, `"`), nil
 				}
 			case *Include:
 				val := t.Get(alias, key)
