@@ -561,7 +561,32 @@ func TestGetQuoted(t *testing.T) {
 	}
 
 	val := us.Get("wap", "XAuthLocation")
-	if val != `/usr/bin/xauth` {
-		t.Errorf("expected to find `/usr/bin/xauth`, got `%s`", val)
+	expectedValue := `/usr/bin/xauth`
+	if val != expectedValue {
+		t.Errorf("expected to find `%s`, got `%s`", expectedValue, val)
+	}
+}
+
+func TestGetQuotedSSV(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val := us.Get("wap", "UserKnownHostsFile")
+	expectedValue := `~/.ssh/12 ~/.ssh/34 "~/.ssh/5 6"`
+	if val != expectedValue {
+		t.Errorf("expected to find `%s`, got `%s`", expectedValue, val)
+	}
+}
+
+func TestGetCommand(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val := us.Get("wopr", "ProxyCommand")
+	expectedValue := `sh -c "ssh proxy1 -qW %h:22 || ssh proxy2 -qW %h:22"`
+	if val != expectedValue {
+		t.Errorf("expected to find `%s`, got `%s`", expectedValue, val)
 	}
 }

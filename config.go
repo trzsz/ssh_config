@@ -41,6 +41,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/google/shlex"
 )
 
 const version = "1.2"
@@ -402,7 +404,10 @@ func (c *Config) Get(alias, key string) (string, error) {
 					panic("can't handle Match directives")
 				}
 				if lkey == lowerKey {
-					return strings.Trim(t.Value, `"`), nil // look TestGetQuoted in config_test.go
+					if t.hasEquals {
+						return t.Value, nil
+					}
+					return SplitJoin(t.Value), nil // look TestGetQuoted in config_test.go
 				}
 			case *Include:
 				val := t.Get(alias, key)
@@ -415,6 +420,29 @@ func (c *Config) Get(alias, key string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// Split partitions a string into a slice then quote and join.
+func SplitJoin(s string) string {
+	if !strings.Contains(s, " ") {
+		return strings.Trim(s, `"`)
+	}
+	l := shlex.NewLexer(strings.NewReader(s))
+	subStrings := make([]string, 0)
+	for {
+		word, err := l.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return s
+		}
+		if strings.Contains(word, " ") {
+			word = `"` + word + `"`
+		}
+		subStrings = append(subStrings, word)
+	}
+	return strings.Join(subStrings, " ")
 }
 
 // GetAll returns all values in the configuration that match the alias and
