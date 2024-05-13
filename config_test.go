@@ -554,3 +554,14 @@ func TestCommentValue(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuoted(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val := us.Get("wap", "XAuthLocation")
+	if val != `/usr/bin/xauth` {
+		t.Errorf("expected to find `/usr/bin/xauth`, got `%s`", val)
+	}
+}

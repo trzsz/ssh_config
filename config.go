@@ -402,7 +402,7 @@ func (c *Config) Get(alias, key string) (string, error) {
 					panic("can't handle Match directives")
 				}
 				if lkey == lowerKey {
-					return strings.Trim(t.Value, `"`), nil
+					return strings.Trim(t.Value, `"`), nil // look TestGetQuoted in config_test.go
 				}
 			case *Include:
 				val := t.Get(alias, key)
