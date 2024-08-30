@@ -8,6 +8,10 @@ Host wap
   User root
   KexAlgorithms diffie-hellman-group1-sha1
 
+Host jumpserver
+  User somebody#root#7e95b740-27dc-46fa-b18b-f71dac6e9987
+  Port 2222
+
 Host [some stuff behind a NAT]
   Compression yes
   ProxyCommand ssh -qW %h:%p [NATrouter]

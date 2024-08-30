@@ -58,6 +58,17 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestJumpserverUser(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val := us.Get("jumpserver", "User")
+	if val != "somebody#root#7e95b740-27dc-46fa-b18b-f71dac6e9987" {
+		t.Errorf("expected to find User root, got %q", val)
+	}
+}
+
 func TestGetWithDefault(t *testing.T) {
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/config1"),
@@ -309,7 +320,7 @@ func TestInclude(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-test-file")
-	err := os.WriteFile(testPath, includeFile, 0644)
+	err := os.WriteFile(testPath, includeFile, 0o644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}
@@ -328,7 +339,7 @@ func TestIncludeSystem(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join("/", "etc", "ssh", "kevinburke-ssh-config-test-file")
-	err := os.WriteFile(testPath, includeFile, 0644)
+	err := os.WriteFile(testPath, includeFile, 0o644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}
@@ -352,7 +363,7 @@ func TestIncludeRecursive(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-recursive-include")
-	err := os.WriteFile(testPath, recursiveIncludeFile, 0644)
+	err := os.WriteFile(testPath, recursiveIncludeFile, 0o644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}

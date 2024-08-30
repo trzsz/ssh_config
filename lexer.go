@@ -98,7 +98,8 @@ func (s *sshLexer) lexRvalue(notEndWithComment bool) sshLexStateFn {
 				s.skip()
 				return s.lexVoid
 			case '#':
-				if notEndWithComment {
+				if notEndWithComment ||
+					(len(growingString) > 0 && growingString[len(growingString)-1] != ' ') {
 					growingString += string(next)
 					s.next()
 					continue
