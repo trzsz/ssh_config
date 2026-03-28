@@ -28,3 +28,4 @@
 !.gitignore
 !.gitattributes
 demo
+/coverage.out

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -111,23 +112,81 @@ func TestGetIdentities(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected nil err, got %v", err)
 	}
-	if len(val) != len(defaultProtocol2Identities) {
+	if len(val) != len(defaultIdentityFiles) {
 		// TODO: return the right values here.
 		log.Printf("expected defaults, got %v", val)
 	} else {
-		for i, v := range defaultProtocol2Identities {
+		for i, v := range defaultIdentityFiles {
 			if val[i] != v {
 				t.Errorf("invalid %d in val, expected %s got %s", i, v, val[i])
 			}
 		}
 	}
 
+	// "protocol1" host sets Protocol 1, but Protocol is ignored in modern
+	// OpenSSH (only SSH2 exists). No IdentityFile is set for this host, so
+	// the result is empty (IdentityFile has no single default value).
 	val, err = us.GetAllStrict("protocol1", "IdentityFile")
 	if err != nil {
 		t.Errorf("expected nil err, got %v", err)
 	}
-	if len(val) != 1 || val[0] != "~/.ssh/identity" {
-		t.Errorf("expected [\"~/.ssh/identity\"], got %v", val)
+	if len(val) != 0 {
+		t.Errorf("expected [], got %v", val)
+	}
+}
+
+func TestGetQuotedValues(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/quoted-identities"),
+	}
+
+	val, err := us.GetStrict("hasquotedidentity", "IdentityFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/Users/testuser/.ssh/quoted_key"
+	if val != want {
+		t.Errorf("IdentityFile with quotes: got %q, want %q", val, want)
+	}
+
+	val, err = us.GetStrict("hasquotedhostname", "HostName")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "example.com"
+	if val != want {
+		t.Errorf("HostName with quotes: got %q, want %q", val, want)
+	}
+
+	val, err = us.GetStrict("hasunquotedidentity", "IdentityFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "/Users/testuser/.ssh/unquoted_key"
+	if val != want {
+		t.Errorf("IdentityFile without quotes: got %q, want %q", val, want)
+	}
+
+	// Verify roundtripping preserves quotes in the output
+	f, err := os.Open("testdata/quoted-identities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	cfg, err := Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := cfg.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.ReadFile("testdata/quoted-identities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != string(original) {
+		t.Errorf("roundtrip mismatch:\ngot:\n%s\nwant:\n%s", out, original)
 	}
 }
 
@@ -177,26 +236,26 @@ func TestGetAllNotFoundNoDefault(t *testing.T) {
 }
 
 func TestSetDefault(t *testing.T) {
-	defaultIdentity := Default("IdentityFile")
-	if defaultIdentity != "~/.ssh/identity" {
-		t.Fatalf("expected '~/.ssh/identity', got '%v'", defaultIdentity)
+	defaultLogLevel := Default("LogLevel")
+	if defaultLogLevel != "INFO" {
+		t.Fatalf("expected 'INFO', got '%v'", defaultLogLevel)
 	}
-	defer SetDefault("IdentityFile", defaultIdentity)
+	defer SetDefault("LogLevel", defaultLogLevel)
 
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/config1"),
 	}
-	val, err := us.GetStrict("wap", "IdentityFile")
+	val, err := us.GetStrict("wap", "LogLevel")
 	if err != nil {
 		t.Fatalf("expected nil err, got %v", err)
 	}
-	if val != "~/.ssh/identity" {
-		t.Errorf("expected to get '~/.ssh/identity', got %q", val)
+	if val != "INFO" {
+		t.Errorf("expected to get 'INFO', got %q", val)
 	}
 
-	SetDefault("IdentityFile", "")
+	SetDefault("LogLevel", "")
 
-	val, err = us.GetStrict("wap", "IdentityFile")
+	val, err = us.GetStrict("wap", "LogLevel")
 	if err != nil {
 		t.Fatalf("expected nil err, got %v", err)
 	}
@@ -204,12 +263,20 @@ func TestSetDefault(t *testing.T) {
 		t.Errorf("expected to get empty string, got %q", val)
 	}
 
-	vals, err := us.GetAllStrict("wap", "IdentityFile")
+	vals, err := us.GetAllStrict("wap", "LogLevel")
 	if err != nil {
 		t.Fatalf("expected nil err, got %v", err)
 	}
 	if len(vals) != 0 {
 		t.Errorf("expected to get empty array, got %q", vals)
+	}
+
+	val, err = us.GetStrict("wap", "IdentityFile")
+	if err != nil {
+		t.Fatalf("expected nil err, got %v", err)
+	}
+	if val != "" {
+		t.Errorf("expected to get empty string, got %q", val)
 	}
 }
 
@@ -387,6 +454,32 @@ func TestIncludeString(t *testing.T) {
 	}
 }
 
+var shellIncludeFile = []byte(`
+# This host should not exist, so we can use it for test purposes / it won't
+# interfere with any other configurations.
+Host kevinburke.ssh_config.test.example.com
+    Port 4567
+`)
+
+func TestIncludeShellHomeDirectory(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	testPath := filepath.Join(homedir(), "kevinburke-ssh-config-shell-include")
+	err := os.WriteFile(testPath, shellIncludeFile, 0644)
+	if err != nil {
+		t.Skipf("couldn't write SSH config file: %v", err.Error())
+	}
+	defer os.Remove(testPath)
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/include-shell"),
+	}
+	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
+	if val != "4567" {
+		t.Errorf("expected to find Port=4567 in included file, got %q", val)
+	}
+}
+
 var matchTests = []struct {
 	in    []string
 	alias string
@@ -426,14 +519,15 @@ func TestMatches(t *testing.T) {
 	}
 }
 
-func TestMatchUnsupported(t *testing.T) {
-	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/match-directive"),
+func TestMatchExecUnsupported(t *testing.T) {
+	config := `Match Exec "echo hello"
+    Port 2222`
+	_, err := Decode(strings.NewReader(config))
+	if err == nil {
+		t.Fatal("expected Match Exec to error, didn't")
 	}
-
-	_, err := us.GetStrict("test.test", "Port")
-	if err != nil {
-		t.Fatal(err)
+	if !strings.Contains(err.Error(), "ssh_config: Match Exec is not supported") {
+		t.Errorf("wrong error: %v", err)
 	}
 }
 
@@ -488,6 +582,33 @@ func TestNoTrailingNewline(t *testing.T) {
 
 	if port != "4242" {
 		t.Errorf("wrong port: got %q want 4242", port)
+	}
+}
+
+func TestEOLCommentSpacing(t *testing.T) {
+	// Reproduces issue #50: programmatically created Host with EOLComment
+	// should have a space before the '#', not "Host foo#comment".
+	pattern, err := NewPattern("example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := &Host{
+		Patterns: []*Pattern{pattern},
+		Nodes: []Node{
+			&KV{Key: "  Hostname", Value: "1.2.3.4"},
+		},
+	}
+	host.EOLComment = "my comment"
+	got := host.String()
+	if !strings.Contains(got, "Host example #my comment") {
+		t.Errorf("expected space before comment, got %q", got)
+	}
+
+	// Same issue for KV: programmatically created KV with Comment
+	kv := &KV{Key: "  Port", Value: "22", Comment: "ssh port"}
+	got = kv.String()
+	if !strings.Contains(got, "22 #ssh port") {
+		t.Errorf("expected space before KV comment, got %q", got)
 	}
 }
 
