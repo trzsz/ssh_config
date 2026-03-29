@@ -523,11 +523,8 @@ func TestMatchExecUnsupported(t *testing.T) {
 	config := `Match Exec "echo hello"
     Port 2222`
 	_, err := Decode(strings.NewReader(config))
-	if err == nil {
-		t.Fatal("expected Match Exec to error, didn't")
-	}
-	if !strings.Contains(err.Error(), "ssh_config: Match Exec is not supported") {
-		t.Errorf("wrong error: %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error for unsupported Match Exec: %v", err)
 	}
 }
 

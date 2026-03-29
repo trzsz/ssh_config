@@ -172,6 +172,29 @@ func (p *sshParser) parseKV() sshParserStateFn {
 	return p.parseStart
 }
 
+func (p *sshParser) skipUntilNextBlock() sshParserStateFn {
+	for {
+		tok := p.peek()
+		// If we reach the end of the stream or a file, stop skipping.
+		if tok == nil || tok.typ == tokenEOF {
+			return nil
+		}
+
+		// A new block starts with 'Host' or 'Match' keywords.
+		if tok.typ == tokenKey {
+			key := strings.ToLower(tok.val)
+			if key == "host" || key == "match" {
+				// Return to the main parsing loop to handle the new block.
+				return p.parseStart
+			}
+		}
+
+		// Discard any tokens inside the unsupported block,
+		// including 'Include', 'KV' pairs, comments, and empty lines.
+		p.getToken()
+	}
+}
+
 func (p *sshParser) parseMatch(val *token, hasEquals bool, comment string) sshParserStateFn {
 	// val.val contains everything after "Match ", e.g. "Host *.example.com"
 	// or "all".
@@ -228,14 +251,13 @@ func (p *sshParser) parseMatch(val *token, hasEquals bool, comment string) sshPa
 
 	case "exec":
 		// Match Exec runs arbitrary commands. Supporting it would allow
-		// untrusted SSH config files to execute code on the parsing
-		// machine. Reject it explicitly.
-		p.raiseErrorf(val, "ssh_config: Match Exec is not supported")
-		return nil
+		// untrusted SSH config files to execute code on the parsing machine.
+		// We skip it for security and compatibility.
+		return p.skipUntilNextBlock
 
 	default:
-		p.raiseErrorf(val, fmt.Sprintf("ssh_config: unsupported Match criterion %q", criterion))
-		return nil
+		// Silently skip other unsupported criteria (e.g., user, localnetwork) for compatibility.
+		return p.skipUntilNextBlock
 	}
 }
 

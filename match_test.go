@@ -443,6 +443,26 @@ func TestMatchUnsupportedCriteria(t *testing.T) {
 			config:  "Match Bogus value\n    Port 22",
 			wantErr: "ssh_config: unsupported Match criterion",
 		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Decode(strings.NewReader(tt.config))
+			if err != nil {
+				t.Fatalf("expected no error for %s, got: %v", tt.name, err)
+			}
+		})
+	}
+}
+
+func TestMatchMalformedHost(t *testing.T) {
+	// These cases are syntax errors (missing patterns), not just unsupported criteria.
+	// They should still return an error.
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
 		// Match Host with no patterns after it.
 		{
 			name:    "match host with no patterns",
@@ -595,5 +615,63 @@ func TestMatchExistingDirectiveFile(t *testing.T) {
 	val := us.Get("anyhost", "Port")
 	if val != "4567" {
 		t.Errorf("expected Port=4567 via Match all, got %q", val)
+	}
+}
+
+func TestMatchIgnoreUnsupportedCriteria(t *testing.T) {
+	config := `
+Host dev-server
+    User alice
+    Port 22
+
+# Unsupported 'exec' block - should be entirely skipped
+Match exec "some_command"
+    User leaked-user
+    Compression yes
+    ProxyJump gateway.example.com
+
+# Unsupported 'LocalNetwork' block - should be entirely skipped
+Match LocalNetwork 192.168.1.0/24
+    ForwardAgent yes
+
+# Legitimate block - parser must recover here
+Host prod-server
+    User charlie
+`
+
+	cfg, err := Decode(strings.NewReader(config))
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// 1. Assert NO LEAKAGE into 'dev-server'
+	// If the parser is broken, 'dev-server' will mistakenly pick up these keys.
+	val, _ := cfg.Get("dev-server", "Compression")
+	if val != "" {
+		t.Errorf("Leak detected: 'Compression' leaked into 'dev-server', got %q", val)
+	}
+
+	val, _ = cfg.Get("dev-server", "ForwardAgent")
+	if val != "" {
+		t.Errorf("Leak detected: 'ForwardAgent' leaked into 'dev-server', got %q", val)
+	}
+
+	// 2. Assert NO LEAKAGE into 'prod-server'
+	// Testing if the skip logic "overshot" or "undershot" and polluted the next block.
+	val, _ = cfg.Get("prod-server", "ForwardAgent")
+	if val != "" {
+		t.Errorf("Leak detected: 'ForwardAgent' leaked into 'prod-server', got %q", val)
+	}
+
+	// 3. Verify 'prod-server' recovery and data integrity
+	val, _ = cfg.Get("prod-server", "User")
+	if val != "charlie" {
+		t.Errorf("expected User=charlie for prod-server, got %q. Parser failed to recover correctly.", val)
+	}
+
+	// 4. Double check 'dev-server' original values
+	val, _ = cfg.Get("dev-server", "User")
+	if val != "alice" {
+		t.Errorf("expected User=alice for dev-server, got %q", val)
 	}
 }
